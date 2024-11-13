@@ -8,6 +8,7 @@
 #include "envoy/type/metadata/v3/metadata.pb.h"
 #include "envoy/type/tracing/v3/custom_tag.pb.h"
 
+#include "source/common/config/metadata.h"
 #include "source/common/common/assert.h"
 #include "source/common/common/fmt.h"
 #include "source/common/common/macros.h"
@@ -208,6 +209,15 @@ void HttpTracerUtility::finalizeDownstreamSpan(Span& span,
   onUpstreamResponseHeaders(span, response_headers);
   onUpstreamResponseTrailers(span, response_trailers);
 
+  const auto start_time = stream_info.startTime();
+  std::string rsp_body = Envoy::Config::Metadata::metadataValue(&stream_info.dynamicMetadata(), "cle.log.rsp.lua", "body").string_value();
+  if (!rsp_body.empty()) {
+    span.log(start_time, "response_body: " + rsp_body);
+  }
+  auto ss = std::stringstream();
+  response_headers->dumpState(ss);
+  span.log(start_time, "response_headers: " + ss.str());
+
   span.finishSpan();
 }
 
@@ -227,6 +237,15 @@ void HttpTracerUtility::finalizeUpstreamSpan(Span& span, const StreamInfo::Strea
   }
 
   setCommonTags(span, stream_info, tracing_config);
+
+  const auto start_time = stream_info.startTime();
+  std::string req_body = Envoy::Config::Metadata::metadataValue(&stream_info.dynamicMetadata(), "cle.log.req.lua", "body").string_value();
+  if (!req_body.empty()) {
+    span.log(start_time, "request_body: " + req_body);
+  }
+  auto ss = std::stringstream();
+  stream_info.getRequestHeaders()->dumpState(ss);
+  span.log(start_time, "request_headers: " + ss.str());
 
   span.finishSpan();
 }
