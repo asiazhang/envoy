@@ -162,6 +162,25 @@ static void annotateVerbose(Span& span, const StreamInfo::StreamInfo& stream_inf
   }
 }
 
+std::string dumpRequestHeaders(const Envoy::Http::HeaderMap& headers)  {
+    std::stringstream ss;
+    
+    // 定义回调函数来遍历头部条目
+    headers.iterate([&ss](const Envoy::Http::HeaderEntry& header) -> Envoy::Http::HeaderMap::Iterate {
+        // 获取键和值
+        const std::string key = std::string(header.key().getStringView());
+        const std::string value = std::string(header.value().getStringView());
+
+        // 将其追加为 K=V 格式到字符串流中
+        ss << key << "=" << value << "; ";
+
+        return Envoy::Http::HeaderMap::Iterate::Continue;
+    });
+    
+    // 使用 ENVOY_LOG 打印最终的字符串
+    return ss.str();
+}
+
 void HttpTracerUtility::finalizeDownstreamSpan(Span& span,
                                                const Http::RequestHeaderMap* request_headers,
                                                const Http::ResponseHeaderMap* response_headers,
@@ -201,6 +220,12 @@ void HttpTracerUtility::finalizeDownstreamSpan(Span& span,
     if (Grpc::Common::isGrpcRequestHeaders(*request_headers)) {
       addGrpcRequestTags(span, *request_headers);
     }
+
+    ENVOY_LOG(warn, "Add request http headers");
+    span.setTag("request_headers", dumpRequestHeaders(*request_headers));
+
+    // TODO: 由于dumpState的数据可读性不佳，因此将headers中的数据展开
+    // 例如：request_headers.x-powered-by = "Servlet/3.1"
   }
 
   span.setTag(Tracing::Tags::get().RequestSize, std::to_string(stream_info.bytesReceived()));
@@ -210,21 +235,23 @@ void HttpTracerUtility::finalizeDownstreamSpan(Span& span,
   onUpstreamResponseHeaders(span, response_headers);
   onUpstreamResponseTrailers(span, response_trailers);
 
-  // const auto start_time = stream_info.startTime();
+  std::string req_body = Envoy::Config::Metadata::metadataValue(&stream_info.dynamicMetadata(), "cle.log.req.lua", "body").string_value();
+  ENVOY_LOG(warn, "Add request http body");
+  span.setTag("request_body", req_body);
+  
   std::string rsp_body = Envoy::Config::Metadata::metadataValue(&stream_info.dynamicMetadata(), "cle.log.rsp.lua", "body").string_value();
-  if (!rsp_body.empty()) {
-    ENVOY_LOG(warn, "Add response http body");
-    span.setTag("response_http_body", rsp_body);
-    // span.log(start_time, "response_body: " + rsp_body);
+  ENVOY_LOG(warn, "Add response http body");
+  span.setTag("response_body", rsp_body);
+  
+  if(response_headers) {
+    ENVOY_LOG(warn, "Add response http headers");
+    span.setTag("response_headers", dumpRequestHeaders(*response_headers));
   }
-  auto ss = std::stringstream();
-  response_headers->dumpState(ss);
-  ENVOY_LOG(warn, "Add response http headers");
-  span.setTag("response_http_headers", ss.str());
-  // span.log(start_time, "response_headers: " + ss.str());
 
   span.finishSpan();
 }
+
+
 
 void HttpTracerUtility::finalizeUpstreamSpan(Span& span, const StreamInfo::StreamInfo& stream_info,
                                              const Config& tracing_config) {
@@ -242,19 +269,6 @@ void HttpTracerUtility::finalizeUpstreamSpan(Span& span, const StreamInfo::Strea
   }
 
   setCommonTags(span, stream_info, tracing_config);
-
-  // const auto start_time = stream_info.startTime();
-  std::string req_body = Envoy::Config::Metadata::metadataValue(&stream_info.dynamicMetadata(), "cle.log.req.lua", "body").string_value();
-  if (!req_body.empty()) {
-    ENVOY_LOG(warn, "Add request http body");
-    span.setTag("request_http_body", req_body);
-    // span.log(start_time, "request_body: " + req_body);
-  }
-  auto ss = std::stringstream();
-  stream_info.getRequestHeaders()->dumpState(ss);
-  ENVOY_LOG(warn, "Add request http headers");
-  // span.log(start_time, "request_headers: " + ss.str());
-  span.setTag("request_http_headers", ss.str());
 
   span.finishSpan();
 }
