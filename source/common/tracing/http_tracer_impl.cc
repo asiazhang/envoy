@@ -209,7 +209,7 @@ void HttpTracerUtility::finalizeDownstreamSpan(Span& span,
   onUpstreamResponseHeaders(span, response_headers);
   onUpstreamResponseTrailers(span, response_trailers);
 
-  const auto start_time = stream_info.startTime();
+  // const auto start_time = stream_info.startTime();
   std::string rsp_body = Envoy::Config::Metadata::metadataValue(&stream_info.dynamicMetadata(), "cle.log.rsp.lua", "body").string_value();
   if (!rsp_body.empty()) {
     span.setTag("response_http_body", rsp_body);
@@ -240,7 +240,7 @@ void HttpTracerUtility::finalizeUpstreamSpan(Span& span, const StreamInfo::Strea
 
   setCommonTags(span, stream_info, tracing_config);
 
-  const auto start_time = stream_info.startTime();
+  // const auto start_time = stream_info.startTime();
   std::string req_body = Envoy::Config::Metadata::metadataValue(&stream_info.dynamicMetadata(), "cle.log.req.lua", "body").string_value();
   if (!req_body.empty()) {
     span.setTag("request_http_body", req_body);
