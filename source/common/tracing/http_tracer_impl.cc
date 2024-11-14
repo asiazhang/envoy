@@ -25,6 +25,7 @@
 
 #include "absl/strings/str_cat.h"
 
+
 namespace Envoy {
 namespace Tracing {
 
@@ -212,11 +213,13 @@ void HttpTracerUtility::finalizeDownstreamSpan(Span& span,
   // const auto start_time = stream_info.startTime();
   std::string rsp_body = Envoy::Config::Metadata::metadataValue(&stream_info.dynamicMetadata(), "cle.log.rsp.lua", "body").string_value();
   if (!rsp_body.empty()) {
+    ENVOY_LOG(warn, "Add response http body");
     span.setTag("response_http_body", rsp_body);
     // span.log(start_time, "response_body: " + rsp_body);
   }
   auto ss = std::stringstream();
   response_headers->dumpState(ss);
+  ENVOY_LOG(warn, "Add response http headers");
   span.setTag("response_http_headers", ss.str());
   // span.log(start_time, "response_headers: " + ss.str());
 
@@ -243,11 +246,13 @@ void HttpTracerUtility::finalizeUpstreamSpan(Span& span, const StreamInfo::Strea
   // const auto start_time = stream_info.startTime();
   std::string req_body = Envoy::Config::Metadata::metadataValue(&stream_info.dynamicMetadata(), "cle.log.req.lua", "body").string_value();
   if (!req_body.empty()) {
+    ENVOY_LOG(warn, "Add request http body");
     span.setTag("request_http_body", req_body);
     // span.log(start_time, "request_body: " + req_body);
   }
   auto ss = std::stringstream();
   stream_info.getRequestHeaders()->dumpState(ss);
+  ENVOY_LOG(warn, "Add request http headers");
   // span.log(start_time, "request_headers: " + ss.str());
   span.setTag("request_http_headers", ss.str());
 

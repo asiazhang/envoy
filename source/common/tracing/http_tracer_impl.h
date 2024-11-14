@@ -19,7 +19,7 @@
 namespace Envoy {
 namespace Tracing {
 
-class HttpTracerUtility {
+class HttpTracerUtility: Logger::Loggable<Logger::Id::filter> {
 public:
   /**
    * Get string representation of the operation.
