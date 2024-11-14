@@ -221,7 +221,7 @@ void HttpTracerUtility::finalizeDownstreamSpan(Span& span,
       addGrpcRequestTags(span, *request_headers);
     }
 
-    ENVOY_LOG(warn, "Add request http headers");
+    ENVOY_LOG(info, "Add request http headers");
     span.setTag("request_headers", dumpRequestHeaders(*request_headers));
 
     // TODO: 由于dumpState的数据可读性不佳，因此将headers中的数据展开
@@ -236,15 +236,15 @@ void HttpTracerUtility::finalizeDownstreamSpan(Span& span,
   onUpstreamResponseTrailers(span, response_trailers);
 
   std::string req_body = Envoy::Config::Metadata::metadataValue(&stream_info.dynamicMetadata(), "cle.log.req.lua", "body").string_value();
-  ENVOY_LOG(warn, "Add request http body");
+  ENVOY_LOG(info, "Add request http body");
   span.setTag("request_body", req_body);
   
   std::string rsp_body = Envoy::Config::Metadata::metadataValue(&stream_info.dynamicMetadata(), "cle.log.rsp.lua", "body").string_value();
-  ENVOY_LOG(warn, "Add response http body");
+  ENVOY_LOG(info, "Add response http body");
   span.setTag("response_body", rsp_body);
   
   if(response_headers) {
-    ENVOY_LOG(warn, "Add response http headers");
+    ENVOY_LOG(info, "Add response http headers");
     span.setTag("response_headers", dumpRequestHeaders(*response_headers));
   }
 
