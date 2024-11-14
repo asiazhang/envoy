@@ -212,11 +212,13 @@ void HttpTracerUtility::finalizeDownstreamSpan(Span& span,
   const auto start_time = stream_info.startTime();
   std::string rsp_body = Envoy::Config::Metadata::metadataValue(&stream_info.dynamicMetadata(), "cle.log.rsp.lua", "body").string_value();
   if (!rsp_body.empty()) {
-    span.log(start_time, "response_body: " + rsp_body);
+    span.setTag("response_http_body", rsp_body);
+    // span.log(start_time, "response_body: " + rsp_body);
   }
   auto ss = std::stringstream();
   response_headers->dumpState(ss);
-  span.log(start_time, "response_headers: " + ss.str());
+  span.setTag("response_http_headers", ss.str());
+  // span.log(start_time, "response_headers: " + ss.str());
 
   span.finishSpan();
 }
@@ -241,11 +243,13 @@ void HttpTracerUtility::finalizeUpstreamSpan(Span& span, const StreamInfo::Strea
   const auto start_time = stream_info.startTime();
   std::string req_body = Envoy::Config::Metadata::metadataValue(&stream_info.dynamicMetadata(), "cle.log.req.lua", "body").string_value();
   if (!req_body.empty()) {
-    span.log(start_time, "request_body: " + req_body);
+    span.setTag("request_http_body", req_body);
+    // span.log(start_time, "request_body: " + req_body);
   }
   auto ss = std::stringstream();
   stream_info.getRequestHeaders()->dumpState(ss);
-  span.log(start_time, "request_headers: " + ss.str());
+  // span.log(start_time, "request_headers: " + ss.str());
+  span.setTag("request_http_headers", ss.str());
 
   span.finishSpan();
 }
