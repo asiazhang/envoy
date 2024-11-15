@@ -255,7 +255,7 @@ void HttpTracerUtility::finalizeDownstreamSpan(Span& span,
   std::string request_id = extractRequestIdFromJson(rsp_body);
   
   if (!request_id.empty()) {
-      span.setTag("request_id", request_id);
+      span.setTag("RequestId", request_id);
   }
     
   if(response_headers) {
