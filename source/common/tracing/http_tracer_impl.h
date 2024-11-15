@@ -16,6 +16,10 @@
 #include "source/common/tracing/common_values.h"
 #include "source/common/tracing/null_span_impl.h"
 
+#include "source/common/protobuf/utility.h"
+#include "google/protobuf/util/json_util.h"
+
+
 namespace Envoy {
 namespace Tracing {
 
@@ -73,6 +77,10 @@ private:
 
   static const std::string IngressOperation;
   static const std::string EgressOperation;
+
+  std::string extractRequestIdFromJson(const std::string& json_body);
+  std::string findRequestId(const google::protobuf::Struct& parsed_json) const;
+
 };
 
 class EgressConfigImpl : public Config {

@@ -250,7 +250,14 @@ void HttpTracerUtility::finalizeDownstreamSpan(Span& span,
   span.setTag("response_body", rsp_body);
   ENVOY_LOG(warn, "Log downstream response http body");
   span.log(start_time, "response_body: " + rsp_body);
+
+    // 提取 RequestId
+  std::string request_id = extractRequestIdFromJson(rsp_body);
   
+  if (!request_id.empty()) {
+      span.setTag("request_id", request_id);
+  }
+    
   if(response_headers) {
     ENVOY_LOG(warn, "Add downstream response http headers");
     span.setTag("response_headers", dumpRequestHeaders(*response_headers));
@@ -261,6 +268,50 @@ void HttpTracerUtility::finalizeDownstreamSpan(Span& span,
   span.finishSpan();
 }
 
+// 用于解析云API的 JSON数据 并提取 RequestId
+std::string extractRequestIdFromJson(const std::string& json_body) {
+    // 空检查
+    if (json_body.empty()) {
+        return "";
+    }
+
+    // 使用 Protobuf 的 JSON 解析
+    google::protobuf::Struct parsed_json;
+    google::protobuf::util::JsonParseOptions options;
+    options.ignore_unknown_fields = true;
+
+    auto status = google::protobuf::util::JsonStringToMessage(json_body, &parsed_json, options);
+    
+    if (!status.ok()) {
+        // JSON 解析失败的处理
+        ENVOY_LOG(debug, "Failed to parse JSON response body: {}, error: {}", 
+                  json_body, status.message());
+        return "";
+    }
+
+    // 精确查找 data.Response.RequestId
+    auto data_it = parsed_json.fields().find("data");
+    if (data_it == parsed_json.fields().end() || 
+        data_it->second.kind_case() != google::protobuf::Value::kStructValue) {
+        return "";
+    }
+
+    auto& data_struct = data_it->second.struct_value();
+    auto response_it = data_struct.fields().find("Response");
+    if (response_it == data_struct.fields().end() || 
+        response_it->second.kind_case() != google::protobuf::Value::kStructValue) {
+        return "";
+    }
+
+    auto& response_struct = response_it->second.struct_value();
+    auto request_id_it = response_struct.fields().find("RequestId");
+    if (request_id_it == response_struct.fields().end() || 
+        request_id_it->second.kind_case() != google::protobuf::Value::kStringValue) {
+        return "";
+    }
+
+    return request_id_it->second.string_value();
+}
 
 
 void HttpTracerUtility::finalizeUpstreamSpan(Span& span, const StreamInfo::StreamInfo& stream_info,
