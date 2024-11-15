@@ -223,8 +223,9 @@ void HttpTracerUtility::finalizeDownstreamSpan(Span& span,
       addGrpcRequestTags(span, *request_headers);
     }
 
-    ENVOY_LOG(info, "Add request http headers");
+    ENVOY_LOG(warn, "Add downstream request http headers");
     span.setTag("request_headers", dumpRequestHeaders(*request_headers));
+    ENVOY_LOG(warn, "Log downstream request http headers");
     span.log(start_time, "request_headers: " + dumpRequestHeaders(*request_headers));
 
     // TODO: 由于dumpState的数据可读性不佳，因此将headers中的数据展开
@@ -239,18 +240,21 @@ void HttpTracerUtility::finalizeDownstreamSpan(Span& span,
   onUpstreamResponseTrailers(span, response_trailers);
 
   std::string req_body = Envoy::Config::Metadata::metadataValue(&stream_info.dynamicMetadata(), "cle.log.req.lua", "body").string_value();
-  ENVOY_LOG(info, "Add request http body");
+  ENVOY_LOG(warn, "Add downstream request http body");
   span.setTag("request_body", req_body);
+  ENVOY_LOG(warn, "Log downstream request http body");
   span.log(start_time, "request_body: " + req_body);
   
   std::string rsp_body = Envoy::Config::Metadata::metadataValue(&stream_info.dynamicMetadata(), "cle.log.rsp.lua", "body").string_value();
-  ENVOY_LOG(info, "Add response http body");
+  ENVOY_LOG(warn, "Add downstream response http body");
   span.setTag("response_body", rsp_body);
+  ENVOY_LOG(warn, "Log downstream response http body");
   span.log(start_time, "response_body: " + rsp_body);
   
   if(response_headers) {
-    ENVOY_LOG(info, "Add response http headers");
+    ENVOY_LOG(warn, "Add downstream response http headers");
     span.setTag("response_headers", dumpRequestHeaders(*response_headers));
+    ENVOY_LOG(warn, "Log downstream response http headers");
     span.log(start_time, "response_headers: " + dumpRequestHeaders(*response_headers));
   }
 
@@ -261,6 +265,9 @@ void HttpTracerUtility::finalizeDownstreamSpan(Span& span,
 
 void HttpTracerUtility::finalizeUpstreamSpan(Span& span, const StreamInfo::StreamInfo& stream_info,
                                              const Config& tracing_config) {
+
+  const auto start_time = stream_info.startTime();                                              
+
   span.setTag(
       Tracing::Tags::get().HttpProtocol,
       Formatter::SubstitutionFormatUtils::protocolToStringOrDefault(stream_info.protocol()));
@@ -275,6 +282,18 @@ void HttpTracerUtility::finalizeUpstreamSpan(Span& span, const StreamInfo::Strea
   }
 
   setCommonTags(span, stream_info, tracing_config);
+
+  std::string req_body = Envoy::Config::Metadata::metadataValue(&stream_info.dynamicMetadata(), "cle.log.req.lua", "body").string_value();
+  ENVOY_LOG(warn, "Add upstream request http body");
+  span.setTag("request_body", req_body);
+  ENVOY_LOG(warn, "Log upstream request http body");
+  span.log(start_time, "request_body: " + req_body);
+  
+  std::string rsp_body = Envoy::Config::Metadata::metadataValue(&stream_info.dynamicMetadata(), "cle.log.rsp.lua", "body").string_value();
+  ENVOY_LOG(warn, "Add upstream response http body");
+  span.setTag("response_body", rsp_body);
+  ENVOY_LOG(warn, "Log upstream response http body");
+  span.log(start_time, "response_body: " + rsp_body);  
 
   span.finishSpan();
 }
