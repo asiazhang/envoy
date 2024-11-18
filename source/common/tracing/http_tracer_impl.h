@@ -78,9 +78,7 @@ private:
   static const std::string IngressOperation;
   static const std::string EgressOperation;
 
-  std::string extractRequestIdFromJson(const std::string& json_body);
-  std::string findRequestId(const google::protobuf::Struct& parsed_json) const;
-
+  static std::string extractRequestIdFromJson(const std::string& json_body);
 };
 
 class EgressConfigImpl : public Config {
