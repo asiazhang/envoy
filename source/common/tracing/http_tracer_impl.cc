@@ -299,28 +299,48 @@ std::string HttpTracerUtility::extractRequestIdFromJson(const std::string& json_
         return "";
     }
 
-    // 精确查找 data.Response.RequestId
-    auto data_it = parsed_json.fields().find("data");
-    if (data_it == parsed_json.fields().end() || 
-        data_it->second.kind_case() != google::protobuf::Value::kStructValue) {
+    // 定义可能的路径
+    std::vector<std::vector<std::string>> possible_paths = {
+        {"data", "Response", "RequestId"},
+        {"Response", "RequestId"}
+    };
+
+    // 遍历路径尝试查找
+    for (const auto& path : possible_paths) {
+        std::string request_id = findNestedValue(parsed_json, path);
+        if (!request_id.empty()) {
+            return request_id;
+        }
+    }
+
+    return "";
+}
+
+// 递归查找嵌套的 JSON 值
+std::string HttpTracerUtility::findNestedValue(const google::protobuf::Struct& current_struct, 
+                            const std::vector<std::string>& path) {
+    if (path.empty()) {
         return "";
     }
 
-    auto& data_struct = data_it->second.struct_value();
-    auto response_it = data_struct.fields().find("Response");
-    if (response_it == data_struct.fields().end() || 
-        response_it->second.kind_case() != google::protobuf::Value::kStructValue) {
+    auto it = current_struct.fields().find(path[0]);
+    if (it == current_struct.fields().end()) {
         return "";
     }
 
-    auto& response_struct = response_it->second.struct_value();
-    auto request_id_it = response_struct.fields().find("RequestId");
-    if (request_id_it == response_struct.fields().end() || 
-        request_id_it->second.kind_case() != google::protobuf::Value::kStringValue) {
+    if (path.size() == 1) {
+        if (it->second.kind_case() == google::protobuf::Value::kStringValue) {
+            return it->second.string_value();
+        }
         return "";
     }
 
-    return request_id_it->second.string_value();
+    if (it->second.kind_case() == google::protobuf::Value::kStructValue) {
+        return findNestedValue(it->second.struct_value(), 
+                               std::vector<std::string>(path.begin() + 1, path.end()));
+    }
+
+    return "";
 }
 
 

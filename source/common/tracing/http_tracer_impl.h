@@ -79,6 +79,7 @@ private:
   static const std::string EgressOperation;
 
   static std::string extractRequestIdFromJson(const std::string& json_body);
+  static std::string findNestedValue(const google::protobuf::Struct& current_struct, const std::vector<std::string>& path);
 };
 
 class EgressConfigImpl : public Config {
