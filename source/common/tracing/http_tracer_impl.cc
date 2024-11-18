@@ -251,7 +251,7 @@ void HttpTracerUtility::finalizeDownstreamSpan(Span& span,
   span.setTag("request_body.length", std::to_string(req_body_length));
   
   std::string rsp_body = Envoy::Config::Metadata::metadataValue(&stream_info.dynamicMetadata(), "cle.log.rsp.lua", "body").string_value();
-  auto rsp_body_length = req_body.length();
+  auto rsp_body_length = rsp_body.length();
   ENVOY_LOG(warn, "Add downstream response http body, length={}", rsp_body_length);
   span.setTag("response_body", rsp_body);
   ENVOY_LOG(warn, "Log downstream response http body, length={}", rsp_body_length);
