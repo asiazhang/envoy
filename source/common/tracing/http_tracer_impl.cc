@@ -188,8 +188,6 @@ void HttpTracerUtility::finalizeDownstreamSpan(Span& span,
                                                const StreamInfo::StreamInfo& stream_info,
                                                const Config& tracing_config) {
   // Pre response data.
-  const auto start_time = stream_info.startTime();
-
   if (request_headers) {
     if (request_headers->RequestId()) {
       span.setTag(Tracing::Tags::get().GuidXRequestId, request_headers->getRequestIdValue());
@@ -338,8 +336,6 @@ std::string HttpTracerUtility::findNestedValue(const google::protobuf::Struct& c
 
 void HttpTracerUtility::finalizeUpstreamSpan(Span& span, const StreamInfo::StreamInfo& stream_info,
                                              const Config& tracing_config) {
-
-  const auto start_time = stream_info.startTime();                                              
 
   span.setTag(
       Tracing::Tags::get().HttpProtocol,
