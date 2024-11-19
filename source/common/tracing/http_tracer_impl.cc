@@ -225,10 +225,8 @@ void HttpTracerUtility::finalizeDownstreamSpan(Span& span,
 
     std::string request_headers_str = dumpRequestHeaders(*request_headers);
     auto req_header_length = request_headers_str.length();
-    ENVOY_LOG(warn, "Add downstream request http headers, length={}", req_header_length);
+    ENVOY_LOG(debug, "Add downstream request http headers, length={}", req_header_length);
     span.setTag("request_headers", dumpRequestHeaders(*request_headers));
-    ENVOY_LOG(warn, "Log downstream request http headers, length={}", req_header_length);
-    span.log(start_time, "request_headers: " + dumpRequestHeaders(*request_headers));
     span.setTag("request_headers.length", std::to_string(req_header_length));
 
     // TODO: 由于dumpState的数据可读性不佳，因此将headers中的数据展开
@@ -244,18 +242,14 @@ void HttpTracerUtility::finalizeDownstreamSpan(Span& span,
 
   std::string req_body = Envoy::Config::Metadata::metadataValue(&stream_info.dynamicMetadata(), "cle.log.req.lua", "body").string_value();
   auto req_body_length = req_body.length();
-  ENVOY_LOG(warn, "Add downstream request http body, length={}", req_body_length);
+  ENVOY_LOG(debug, "Add downstream request http body, length={}", req_body_length);
   span.setTag("request_body", req_body);
-  ENVOY_LOG(warn, "Log downstream request http body, length={}", req_body_length);
-  span.log(start_time, "request_body: " + req_body);
   span.setTag("request_body.length", std::to_string(req_body_length));
   
   std::string rsp_body = Envoy::Config::Metadata::metadataValue(&stream_info.dynamicMetadata(), "cle.log.rsp.lua", "body").string_value();
   auto rsp_body_length = rsp_body.length();
-  ENVOY_LOG(warn, "Add downstream response http body, length={}", rsp_body_length);
+  ENVOY_LOG(debug, "Add downstream response http body, length={}", rsp_body_length);
   span.setTag("response_body", rsp_body);
-  ENVOY_LOG(warn, "Log downstream response http body, length={}", rsp_body_length);
-  span.log(start_time, "response_body: " + rsp_body);
   span.setTag("response_body.length", std::to_string(rsp_body_length));
 
     // 提取 RequestId
@@ -268,10 +262,8 @@ void HttpTracerUtility::finalizeDownstreamSpan(Span& span,
   if(response_headers) {
     auto rsp_header = dumpRequestHeaders(*response_headers);
     auto rsp_header_length = rsp_header.length();
-    ENVOY_LOG(warn, "Add downstream response http headers, length={}", rsp_header_length);
+    ENVOY_LOG(debug, "Add downstream response http headers, length={}", rsp_header_length);
     span.setTag("response_headers", rsp_header);
-    ENVOY_LOG(warn, "Log downstream response http headers, length={}", rsp_header_length);
-    span.log(start_time, "response_headers: " + rsp_header);
     span.setTag("response_headers.length", std::to_string(rsp_header_length));
   }
 
@@ -365,16 +357,12 @@ void HttpTracerUtility::finalizeUpstreamSpan(Span& span, const StreamInfo::Strea
   setCommonTags(span, stream_info, tracing_config);
 
   std::string req_body = Envoy::Config::Metadata::metadataValue(&stream_info.dynamicMetadata(), "cle.log.req.lua", "body").string_value();
-  ENVOY_LOG(warn, "Add upstream request http body");
+  ENVOY_LOG(debug, "Add upstream request http body");
   span.setTag("request_body", req_body);
-  ENVOY_LOG(warn, "Log upstream request http body");
-  span.log(start_time, "request_body: " + req_body);
   
   std::string rsp_body = Envoy::Config::Metadata::metadataValue(&stream_info.dynamicMetadata(), "cle.log.rsp.lua", "body").string_value();
-  ENVOY_LOG(warn, "Add upstream response http body");
+  ENVOY_LOG(debug, "Add upstream response http body");
   span.setTag("response_body", rsp_body);
-  ENVOY_LOG(warn, "Log upstream response http body");
-  span.log(start_time, "response_body: " + rsp_body);  
 
   span.finishSpan();
 }
