@@ -171,8 +171,8 @@ std::string dumpRequestHeaders(const Envoy::Http::HeaderMap& headers)  {
         const std::string key = std::string(header.key().getStringView());
         const std::string value = std::string(header.value().getStringView());
 
-        // 将其追加为 K=V 格式到字符串流中
-        ss << key << "=" << value << "; ";
+        // 将其追加为 K: V 格式到字符串流中
+        ss << key << ": " << value << "\n";
 
         return Envoy::Http::HeaderMap::Iterate::Continue;
     });
