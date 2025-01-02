@@ -181,6 +181,8 @@ std::string dumpRequestHeaders(const Envoy::Http::HeaderMap& headers)  {
     return ss.str();
 }
 
+const int MAX_SPAN_SIZE = 60000;
+
 void HttpTracerUtility::finalizeDownstreamSpan(Span& span,
                                                const Http::RequestHeaderMap* request_headers,
                                                const Http::ResponseHeaderMap* response_headers,
@@ -226,9 +228,6 @@ void HttpTracerUtility::finalizeDownstreamSpan(Span& span,
     ENVOY_LOG(debug, "Add downstream request http headers, length={}", req_header_length);
     span.setTag("request_headers", dumpRequestHeaders(*request_headers));
     span.setTag("request_headers.length", std::to_string(req_header_length));
-
-    // TODO: 由于dumpState的数据可读性不佳，因此将headers中的数据展开
-    // 例如：request_headers.x-powered-by = "Servlet/3.1"
   }
 
   span.setTag(Tracing::Tags::get().RequestSize, std::to_string(stream_info.bytesReceived()));
@@ -247,7 +246,13 @@ void HttpTracerUtility::finalizeDownstreamSpan(Span& span,
   std::string rsp_body = Envoy::Config::Metadata::metadataValue(&stream_info.dynamicMetadata(), "cle.log.rsp.lua", "body").string_value();
   auto rsp_body_length = rsp_body.length();
   ENVOY_LOG(debug, "Add downstream response http body, length={}", rsp_body_length);
-  span.setTag("response_body", rsp_body);
+  if (rsp_body.length() < MAX_SPAN_SIZE) {
+    ENVOY_LOG(debug, "rsp_body size > {},skip log it.", MAX_SPAN_SIZE);
+    span.setTag("response_body", rsp_body);
+  } else {
+    span.setTag("response_body", "rsp_body too big(>60000),skip it.")
+  }
+  
   span.setTag("response_body.length", std::to_string(rsp_body_length));
 
     // 提取 RequestId
@@ -357,8 +362,13 @@ void HttpTracerUtility::finalizeUpstreamSpan(Span& span, const StreamInfo::Strea
   span.setTag("request_body", req_body);
   
   std::string rsp_body = Envoy::Config::Metadata::metadataValue(&stream_info.dynamicMetadata(), "cle.log.rsp.lua", "body").string_value();
-  ENVOY_LOG(debug, "Add upstream response http body");
-  span.setTag("response_body", rsp_body);
+  if (rsp_body.length() < MAX_SPAN_SIZE) {
+    ENVOY_LOG(debug, "Add upstream response http body");
+    span.setTag("response_body", rsp_body);
+  } else {
+    ENVOY_LOG(debug, "rsp_body is too big(>60000), skip it.");
+    span.setTag("response_body", "rsp_body too big(>60000),skip it.");    
+  }
 
   span.finishSpan();
 }
