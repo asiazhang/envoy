@@ -250,7 +250,7 @@ void HttpTracerUtility::finalizeDownstreamSpan(Span& span,
     ENVOY_LOG(debug, "rsp_body size > {},skip log it.", MAX_SPAN_SIZE);
     span.setTag("response_body", rsp_body);
   } else {
-    span.setTag("response_body", "rsp_body too big(>60000),skip it.")
+    span.setTag("response_body", "rsp_body too big(>60000),skip it.");
   }
   
   span.setTag("response_body.length", std::to_string(rsp_body_length));
