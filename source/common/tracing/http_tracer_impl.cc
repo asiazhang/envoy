@@ -8,6 +8,7 @@
 #include "envoy/type/metadata/v3/metadata.pb.h"
 #include "envoy/type/tracing/v3/custom_tag.pb.h"
 
+#include "source/common/config/metadata.h"
 #include "source/common/common/assert.h"
 #include "source/common/common/fmt.h"
 #include "source/common/common/macros.h"
@@ -22,6 +23,7 @@
 #include "source/common/stream_info/utility.h"
 
 #include "absl/strings/str_cat.h"
+
 
 namespace Envoy {
 namespace Tracing {
@@ -128,6 +130,27 @@ static void annotateVerbose(Span& span, const StreamInfo::StreamInfo& stream_inf
   }
 }
 
+std::string dumpRequestHeaders(const Envoy::Http::HeaderMap& headers)  {
+    std::stringstream ss;
+    
+    // 定义回调函数来遍历头部条目
+    headers.iterate([&ss](const Envoy::Http::HeaderEntry& header) -> Envoy::Http::HeaderMap::Iterate {
+        // 获取键和值
+        const std::string key = std::string(header.key().getStringView());
+        const std::string value = std::string(header.value().getStringView());
+
+        // 将其追加为 K: V 格式到字符串流中
+        ss << key << ": " << value << "\n";
+
+        return Envoy::Http::HeaderMap::Iterate::Continue;
+    });
+    
+    // 使用 ENVOY_LOG 打印最终的字符串
+    return ss.str();
+}
+
+const int MAX_SPAN_SIZE = 60000;
+
 void HttpTracerUtility::finalizeDownstreamSpan(Span& span,
                                                const Http::RequestHeaderMap* request_headers,
                                                const Http::ResponseHeaderMap* response_headers,
@@ -167,6 +190,12 @@ void HttpTracerUtility::finalizeDownstreamSpan(Span& span,
     if (Grpc::Common::isGrpcRequestHeaders(*request_headers)) {
       addGrpcRequestTags(span, *request_headers);
     }
+
+    std::string request_headers_str = dumpRequestHeaders(*request_headers);
+    auto req_header_length = request_headers_str.length();
+    ENVOY_LOG(debug, "Add downstream request http headers, length={}", req_header_length);
+    span.setTag("request_headers", dumpRequestHeaders(*request_headers));
+    span.setTag("request_headers.length", std::to_string(req_header_length));
   }
 
   span.setTag(Tracing::Tags::get().RequestSize, std::to_string(stream_info.bytesReceived()));
@@ -176,11 +205,111 @@ void HttpTracerUtility::finalizeDownstreamSpan(Span& span,
   onUpstreamResponseHeaders(span, response_headers);
   onUpstreamResponseTrailers(span, response_trailers);
 
+  std::string req_body = Envoy::Config::Metadata::metadataValue(&stream_info.dynamicMetadata(), "cle.log.req.lua", "body").string_value();
+  auto req_body_length = req_body.length();
+  ENVOY_LOG(debug, "Add downstream request http body, length={}", req_body_length);
+  span.setTag("request_body", req_body);
+  span.setTag("request_body.length", std::to_string(req_body_length));
+  
+  std::string rsp_body = Envoy::Config::Metadata::metadataValue(&stream_info.dynamicMetadata(), "cle.log.rsp.lua", "body").string_value();
+  auto rsp_body_length = rsp_body.length();
+  ENVOY_LOG(debug, "Add downstream response http body, length={}", rsp_body_length);
+  if (rsp_body.length() < MAX_SPAN_SIZE) {
+    ENVOY_LOG(debug, "rsp_body size > {},skip log it.", MAX_SPAN_SIZE);
+    span.setTag("response_body", rsp_body);
+  } else {
+    span.setTag("response_body", "rsp_body too big(>60000),skip it.");
+  }
+  
+  span.setTag("response_body.length", std::to_string(rsp_body_length));
+
+    // 提取 RequestId
+  std::string request_id = extractRequestIdFromJson(rsp_body);
+  
+  if (!request_id.empty()) {
+      span.setTag("RequestId", request_id);
+  }
+    
+  if(response_headers) {
+    auto rsp_header = dumpRequestHeaders(*response_headers);
+    auto rsp_header_length = rsp_header.length();
+    ENVOY_LOG(debug, "Add downstream response http headers, length={}", rsp_header_length);
+    span.setTag("response_headers", rsp_header);
+    span.setTag("response_headers.length", std::to_string(rsp_header_length));
+  }
+
   span.finishSpan();
 }
 
+// 用于解析云API的 JSON数据 并提取 RequestId
+std::string HttpTracerUtility::extractRequestIdFromJson(const std::string& json_body) {
+    // 空检查
+    if (json_body.empty()) {
+        return "";
+    }
+
+    // 使用 Protobuf 的 JSON 解析
+    google::protobuf::Struct parsed_json;
+    google::protobuf::util::JsonParseOptions options;
+    options.ignore_unknown_fields = true;
+
+    auto status = google::protobuf::util::JsonStringToMessage(json_body, &parsed_json, options);
+    
+    if (!status.ok()) {
+        // JSON 解析失败的处理
+        ENVOY_LOG(debug, "Failed to parse JSON response body: {}, error: {}", 
+                  json_body, status.message());
+        return "";
+    }
+
+    // 定义可能的路径
+    std::vector<std::vector<std::string>> possible_paths = {
+        {"data", "Response", "RequestId"},
+        {"Response", "RequestId"}
+    };
+
+    // 遍历路径尝试查找
+    for (const auto& path : possible_paths) {
+        std::string request_id = findNestedValue(parsed_json, path);
+        if (!request_id.empty()) {
+            return request_id;
+        }
+    }
+
+    return "";
+}
+
+// 递归查找嵌套的 JSON 值
+std::string HttpTracerUtility::findNestedValue(const google::protobuf::Struct& current_struct, 
+                            const std::vector<std::string>& path) {
+    if (path.empty()) {
+        return "";
+    }
+
+    auto it = current_struct.fields().find(path[0]);
+    if (it == current_struct.fields().end()) {
+        return "";
+    }
+
+    if (path.size() == 1) {
+        if (it->second.kind_case() == google::protobuf::Value::kStringValue) {
+            return it->second.string_value();
+        }
+        return "";
+    }
+
+    if (it->second.kind_case() == google::protobuf::Value::kStructValue) {
+        return findNestedValue(it->second.struct_value(), 
+                               std::vector<std::string>(path.begin() + 1, path.end()));
+    }
+
+    return "";
+}
+
+
 void HttpTracerUtility::finalizeUpstreamSpan(Span& span, const StreamInfo::StreamInfo& stream_info,
                                              const Config& tracing_config) {
+
   span.setTag(
       Tracing::Tags::get().HttpProtocol,
       Formatter::SubstitutionFormatUtils::protocolToStringOrDefault(stream_info.protocol()));
@@ -195,6 +324,19 @@ void HttpTracerUtility::finalizeUpstreamSpan(Span& span, const StreamInfo::Strea
   }
 
   setCommonTags(span, stream_info, tracing_config);
+
+  std::string req_body = Envoy::Config::Metadata::metadataValue(&stream_info.dynamicMetadata(), "cle.log.req.lua", "body").string_value();
+  ENVOY_LOG(debug, "Add upstream request http body");
+  span.setTag("request_body", req_body);
+  
+  std::string rsp_body = Envoy::Config::Metadata::metadataValue(&stream_info.dynamicMetadata(), "cle.log.rsp.lua", "body").string_value();
+  if (rsp_body.length() < MAX_SPAN_SIZE) {
+    ENVOY_LOG(debug, "Add upstream response http body");
+    span.setTag("response_body", rsp_body);
+  } else {
+    ENVOY_LOG(debug, "rsp_body is too big(>60000), skip it.");
+    span.setTag("response_body", "rsp_body too big(>60000),skip it.");    
+  }
 
   span.finishSpan();
 }
