@@ -14,10 +14,14 @@
 #include "source/common/tracing/null_span_impl.h"
 #include "source/common/tracing/tracer_impl.h"
 
+#include "source/common/protobuf/utility.h"
+#include "google/protobuf/util/json_util.h"
+
+
 namespace Envoy {
 namespace Tracing {
 
-class HttpTracerUtility {
+class HttpTracerUtility: Logger::Loggable<Logger::Id::filter> {
 public:
   /**
    * Adds information obtained from the downstream request headers as tags to the active span.
@@ -53,6 +57,9 @@ public:
 private:
   static void setCommonTags(Span& span, const StreamInfo::StreamInfo& stream_info,
                             const Config& tracing_config);
+  static std::string extractRequestIdFromJson(const std::string& json_body);
+
+  static std::string findNestedValue(const google::protobuf::Struct& current_struct, const std::vector<std::string>& path);
 };
 
 } // namespace Tracing
