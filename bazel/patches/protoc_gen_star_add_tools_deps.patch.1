@@ -1,0 +1,11 @@
+diff --git a/lang/go/BUILD.bazel b/lang/go/BUILD.bazel
+--- a/lang/go/BUILD.bazel
++++ b/lang/go/BUILD.bazel
+@@ -13,5 +13,6 @@
+     importpath = "github.com/lyft/protoc-gen-star/v2/lang/go",
+     importpath_aliases = ["github.com/lyft/protoc-gen-star/lang/go"],
+     visibility = ["//visibility:public"],
+-    deps = ["//:protoc-gen-star"],
++    deps = ["//:protoc-gen-star",
++            "@org_golang_x_tools//imports"],
+ )
