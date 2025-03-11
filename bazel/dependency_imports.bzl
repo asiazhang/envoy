@@ -91,8 +91,8 @@ def envoy_dependency_imports(go_version = GO_VERSION, jq_version = JQ_VERSION, y
     go_repository(
         name = "org_golang_x_tools",
         importpath = "golang.org/x/tools",
-        sum = "h1:0EedkvKDbh+qistFTd0Bcwe/YLh4vHwWEkiI0toFIBU=",
-        version = "v0.31.0",
+        sum = "h1:Y6O3QIYTAPI4l1kGTjCalXWKY2mTjIs5ZqW5UOtx8L4=",
+        version = "v0.1.12",
         build_external = "external",
     )
     go_repository(
