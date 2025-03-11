@@ -137,6 +137,9 @@ def envoy_dependency_imports(go_version = GO_VERSION, jq_version = JQ_VERSION, y
         sum = "h1:/3+/2sWyXeMLzKd1bX+ixWKgEMsULrIivpDsuaF441o=",
         version = "v2.0.3",
         build_external = "external",
+        deps = [
+                "@org_golang_x_tools//imports",  # 显式传递依赖
+            ],
         # project_url = "https://pkg.go.dev/github.com/lyft/protoc-gen-star",
         # last_update = "2023-01-06"
         # use_category = ["api"],
